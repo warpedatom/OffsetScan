@@ -113,7 +113,11 @@ pub fn parse_pe(data: &[u8], file_path: &str) -> Result<PeInfo, String> {
     let file_len = data.len() as u64;
     let overlay_size = file_len.saturating_sub(last_section_end);
     let has_overlay = overlay_size > 0;
-    let overlay_offset = if has_overlay { Some(last_section_end) } else { None };
+    let overlay_offset = if has_overlay {
+        Some(last_section_end)
+    } else {
+        None
+    };
 
     Ok(PeInfo {
         file: file_path.to_string(),
@@ -132,7 +136,7 @@ pub fn parse_pe(data: &[u8], file_path: &str) -> Result<PeInfo, String> {
         has_overlay,
         overlay_offset,
         overlay_size,
-        mapped_offset: None,   // populated only when a caller passes an explicit offset
+        mapped_offset: None, // populated only when a caller passes an explicit offset
         mapped_section: None,
         warnings: Vec::new(),
     })

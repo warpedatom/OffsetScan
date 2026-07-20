@@ -240,4 +240,3 @@ pub struct ProbeLogEntry {
     pub elapsed_ms: f64,
     pub timestamp_utc: String,
 }
-
