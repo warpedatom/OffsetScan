@@ -240,3 +240,71 @@ pub struct ProbeLogEntry {
     pub elapsed_ms: f64,
     pub timestamp_utc: String,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ioc_serializes_with_offsetinspect_field_names() {
+        let ioc = Ioc {
+            file: "x".into(),
+            file_size: 10,
+            md5: "m".into(),
+            sha1: "s1".into(),
+            sha256: "s2".into(),
+            overall_entropy: 1.0,
+            high_entropy_windows: 0,
+            printable_string_count: 0,
+            is_pe: false,
+            machine: None,
+            imp_hash: None,
+            imported_dll_count: None,
+            has_overlay: None,
+            overlay_size: None,
+        };
+        let json = serde_json::to_string(&ioc).unwrap();
+        for key in [
+            "\"MD5\":",
+            "\"SHA1\":",
+            "\"SHA256\":",
+            "\"IsPE\":",
+            "\"OverallEntropy\":",
+            "\"HighEntropyWindows\":",
+            "\"PrintableStringCount\":",
+        ] {
+            assert!(json.contains(key), "missing {key} in {json}");
+        }
+        // The wrong PascalCase casings must NOT appear.
+        assert!(!json.contains("\"Md5\":"));
+        assert!(!json.contains("\"IsPe\":"));
+    }
+
+    #[test]
+    fn peinfo_uses_the_ispe32plus_rename() {
+        let pe = PeInfo {
+            file: "x".into(),
+            file_size: 0,
+            machine: "x64 (AMD64)".into(),
+            is_pe32_plus: true,
+            entry_point_rva: 0,
+            entry_point_hex: "0x0".into(),
+            image_base: 0,
+            section_count: 0,
+            sections: vec![],
+            imported_dll_count: 0,
+            imports: vec![],
+            imp_hash: None,
+            resource_size: 0,
+            has_overlay: false,
+            overlay_offset: None,
+            overlay_size: 0,
+            mapped_offset: None,
+            mapped_section: None,
+            warnings: vec![],
+        };
+        let json = serde_json::to_string(&pe).unwrap();
+        assert!(json.contains("\"IsPE32Plus\":"));
+        assert!(!json.contains("\"IsPe32Plus\":"));
+    }
+}

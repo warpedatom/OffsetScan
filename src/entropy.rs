@@ -73,3 +73,45 @@ pub fn build_entropy_result(
         windows,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn entropy_of_a_single_repeated_byte_is_zero() {
+        assert_eq!(shannon_entropy(&[0xAA; 64]), 0.0);
+    }
+
+    #[test]
+    fn entropy_of_a_balanced_two_value_buffer_is_one_bit() {
+        let data: Vec<u8> = (0..64u8).map(|i| i % 2).collect();
+        assert!((shannon_entropy(&data) - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn entropy_of_a_uniform_distribution_is_eight_bits() {
+        let data: Vec<u8> = (0..=255u8).collect();
+        assert!((shannon_entropy(&data) - 8.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn windows_are_contiguous_with_inclusive_end_offsets() {
+        let data = vec![0u8; 300];
+        let r = build_entropy_result(&data, "x", 256, 7.0);
+        assert_eq!(r.window_count, 2);
+        assert_eq!(r.windows[0].start_offset, 0);
+        assert_eq!(r.windows[0].end_offset, 255); // inclusive last byte
+        assert_eq!(r.windows[1].start_offset, 256);
+        assert_eq!(r.windows[1].end_offset, 299);
+        assert_eq!(r.windows[1].length, 44);
+    }
+
+    #[test]
+    fn high_entropy_windows_are_flagged_at_the_threshold() {
+        let data: Vec<u8> = (0..=255u8).collect(); // one 256-byte uniform window = 8.0 bits
+        let r = build_entropy_result(&data, "x", 256, 7.0);
+        assert_eq!(r.high_window_count, 1);
+        assert!(r.windows[0].is_high);
+    }
+}
