@@ -88,3 +88,40 @@ fn push_utf16_hit(start: usize, chars: &[u16], min_length: usize, hits: &mut Vec
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extracts_ascii_runs_with_offsets_and_encoding() {
+        let data = b"\x00\x00hello\x00hi world\x00";
+        let hits = extract_ascii_strings(data, 4);
+        assert_eq!(hits.len(), 2);
+        assert_eq!(hits[0].value, "hello");
+        assert_eq!(hits[0].offset, 2);
+        assert_eq!(hits[0].encoding, "Ascii");
+        assert_eq!(hits[1].value, "hi world");
+        assert_eq!(hits[1].offset, 8);
+    }
+
+    #[test]
+    fn honours_the_minimum_length() {
+        let data = b"ab\x00abcd";
+        let hits = extract_ascii_strings(data, 4);
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].value, "abcd");
+        assert_eq!(hits[0].offset, 3);
+    }
+
+    #[test]
+    fn extracts_utf16le_runs() {
+        // "OK" in UTF-16LE = 4F 00 4B 00
+        let data = [0x4F, 0x00, 0x4B, 0x00];
+        let hits = extract_utf16le_strings(&data, 2);
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].value, "OK");
+        assert_eq!(hits[0].encoding, "Unicode");
+        assert_eq!(hits[0].length, 2);
+    }
+}

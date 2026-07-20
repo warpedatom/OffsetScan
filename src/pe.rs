@@ -143,8 +143,7 @@ pub fn parse_pe(data: &[u8], file_path: &str) -> Result<PeInfo, String> {
 }
 
 /// Map a byte offset to the containing PE section name (".text", ...), if any.
-/// Not wired to a CLI flag yet — kept for the planned `--offset` mapping mode.
-#[allow(dead_code)]
+/// Wired to the `pe --offset` flag.
 pub fn offset_to_section(data: &[u8], offset: u64) -> Result<Option<String>, String> {
     let pe = PE::parse(data).map_err(|e| format!("PE parse error: {e}"))?;
     for section in &pe.sections {
@@ -155,4 +154,30 @@ pub fn offset_to_section(data: &[u8], offset: u64) -> Result<Option<String>, Str
         }
     }
     Ok(None)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn strips_known_library_extensions() {
+        assert_eq!(strip_lib_ext("kernel32.dll"), "kernel32");
+        assert_eq!(strip_lib_ext("comctl32.ocx"), "comctl32");
+        assert_eq!(strip_lib_ext("driver.sys"), "driver");
+        assert_eq!(strip_lib_ext("noextension"), "noextension");
+    }
+
+    #[test]
+    fn maps_known_machine_ids_to_display_strings() {
+        assert_eq!(machine_name(0x8664), "x64 (AMD64)");
+        assert_eq!(machine_name(0x014C), "x86 (I386)");
+        assert_eq!(machine_name(0xAA64), "ARM64");
+        assert!(machine_name(0x1234).starts_with("0x"));
+    }
+
+    #[test]
+    fn rejects_a_non_pe_buffer() {
+        assert!(parse_pe(b"this is not a PE image at all", "sample").is_err());
+    }
 }

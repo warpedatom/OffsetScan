@@ -30,11 +30,12 @@ interchangeable at the JSON layer:
 | `offsetscan ioc`                | `Get-OffsetIOC`                          |
 | `offsetscan yara` (feature-gated) | `Invoke-OffsetYaraScan`                |
 
-**Before wiring this into the real pipeline:** diff `src/schema.rs` against
-the authoritative `docs/OUTPUT-SCHEMA.md` in `warpedatom/OffsetInspect` and
-correct any field-name/casing mismatches. The struct definitions here are a
-best-effort mirror based on the public README descriptions, not a verified
-1:1 copy of the real schema doc.
+The struct definitions have been verified field-for-field against the
+authoritative `docs/OUTPUT-SCHEMA.md` and the real OffsetInspect 3.x objects,
+and cross-checked at runtime: `offsetscan ioc` and `Get-OffsetIOC` produce
+byte-identical panels for the same file — **including the imphash**. The
+serialized field names (`MD5`/`SHA1`/`SHA256`/`IsPE`/`IsPE32Plus`) are locked
+by unit tests so the interchange contract can't silently drift.
 
 ## Build
 
@@ -48,28 +49,36 @@ cargo build --release --features yara-scan
 
 ```
 offsetscan pe ./sample.exe
+offsetscan pe ./sample.exe --offset 0x5F85   # map a byte offset to its PE section
 offsetscan entropy ./payload.bin --window 256 --high-threshold 7.2
 offsetscan strings ./sample.bin --min-length 6
 offsetscan ioc ./sample.exe
 
 # Corpus mode (any subcommand):
 offsetscan ioc ./samples --recurse
+
+# Streaming output for large corpora — one compact JSON object per line,
+# emitted as each file finishes so peak memory stays flat:
+offsetscan ioc ./samples --recurse --ndjson
 ```
 
-All commands emit pretty-printed JSON arrays to stdout, matching
+By default all commands emit a pretty-printed JSON array to stdout, matching
 OffsetInspect's JSON-mode convention (always an array, even for one result).
+Add `--ndjson` for newline-delimited JSON — pipe-friendly and constant-memory
+over hundreds of thousands of files.
 
 ## Consuming from PowerShell
 
+OffsetInspect 3.1.0+ ingests OffsetScan's IOC JSON directly, so a corpus report
+runs off the native engine instead of re-scanning each file in PowerShell:
+
 ```powershell
-$offsetscanResults = offsetscan ioc ./samples --recurse | ConvertFrom-Json
-$offsetscanResults | Export-OffsetThreatReport -Path ./engagement.html -IncludeIoc
+offsetscan ioc ./samples --recurse > ./ioc.json
+$results | Export-OffsetThreatReport -Path ./engagement.md -IocJsonPath ./ioc.json
 ```
 
-Because the JSON shape matches `Get-OffsetIOC`'s output, `Export-OffsetThreatReport`
-and any other consumer of that shape should accept OffsetScan's output as a
-drop-in, faster-at-scale alternative — pending the schema verification note
-above.
+Because the JSON shape matches `Get-OffsetIOC` field-for-field, any consumer of
+that shape accepts OffsetScan's output as a drop-in, faster-at-scale alternative.
 
 ## What's intentionally NOT here
 
@@ -82,8 +91,9 @@ above.
 
 ## Status
 
-Early scaffold. `resource_size` in `PeInfo` is not yet computed (needs a
-resource-directory walk). YARA feature is wired to the `yara` crate's API
-shape but untested against a real rule file. No test suite yet — `tests/`
-and `benchmarks/` directories are placeholders mirroring OffsetInspect's
-layout for parity.
+Validated against OffsetInspect and covered by a unit-test suite (Shannon
+entropy vectors, string offsets, PE helpers, and the parity-critical schema
+field names) that runs in CI on Linux and Windows. `resource_size` is computed
+from the PE resource data directory. The `yara-scan` feature is **experimental**
+— it compiles behind the `yara` crate but is not built in CI and is untested
+against real rules; enable it only if you have the YARA engine installed.
