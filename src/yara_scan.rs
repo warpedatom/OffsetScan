@@ -20,10 +20,7 @@ pub struct YaraHit {
 
 #[cfg(feature = "yara-scan")]
 #[allow(dead_code)] // wired to a CLI subcommand only once YARA integration lands
-pub fn scan_with_rules(
-    file_path: &str,
-    rule_path: &str,
-) -> Result<Vec<YaraHit>, String> {
+pub fn scan_with_rules(file_path: &str, rule_path: &str) -> Result<Vec<YaraHit>, String> {
     use yara::Compiler;
 
     let compiler = Compiler::new()
@@ -57,8 +54,10 @@ pub fn scan_with_rules(
 #[cfg(not(feature = "yara-scan"))]
 #[allow(dead_code)] // wired to a CLI subcommand only once YARA integration lands
 pub fn scan_with_rules(_file_path: &str, _rule_path: &str) -> Result<Vec<()>, String> {
-    Err("offsetscan was built without the `yara-scan` feature; rebuild with \
+    Err(
+        "offsetscan was built without the `yara-scan` feature; rebuild with \
          `cargo build --release --features yara-scan` and ensure the YARA \
          engine is installed."
-        .to_string())
+            .to_string(),
+    )
 }

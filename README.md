@@ -1,5 +1,8 @@
 # OffsetScan
 
+[![CI](https://github.com/warpedatom/OffsetScan/actions/workflows/ci.yml/badge.svg)](https://github.com/warpedatom/OffsetScan/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
 A standalone, native, corpus-scale companion to [OffsetInspect](https://github.com/warpedatom/OffsetInspect).
 
 OffsetInspect's static-triage helpers (`Get-OffsetPEInfo`, `Get-OffsetEntropy`,
