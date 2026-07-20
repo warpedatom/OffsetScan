@@ -1,0 +1,14 @@
+# Rust build artifacts
+/target/
+
+# Backtrace/debug
+*.pdb
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Keep Cargo.lock — this crate builds a binary, so the lock is committed.
