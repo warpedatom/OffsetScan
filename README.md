@@ -37,9 +37,45 @@ interchangeable at the JSON layer:
 The struct definitions have been verified field-for-field against the
 authoritative `docs/OUTPUT-SCHEMA.md` and the real OffsetInspect 3.x objects,
 and cross-checked at runtime: `offsetscan ioc` and `Get-OffsetIOC` produce
-byte-identical panels for the same file — **including the imphash**. The
+identical panels for the same file — **including the imphash**. The
 serialized field names (`MD5`/`SHA1`/`SHA256`/`IsPE`/`IsPE32Plus`) are locked
 by unit tests so the interchange contract can't silently drift.
+
+### Verified parity
+
+Both engines against the same Windows system DLL — `offsetscan ioc` on the left,
+`Get-OffsetIOC | ConvertTo-Json` on the right:
+
+```text
+File                    C:/Windows/System32/kernel32.dll
+FileSize                836232
+MD5                     46e3ab50afcb6d871b70676f562e01ce
+SHA1                    732af3ed087e2033d7e7ccaa0f4498deb2e46e8c
+SHA256                  26410f4948e0ed66936880596e2b5a59efce481a7c97086049b385f00325c341
+OverallEntropy          6.361191
+HighEntropyWindows      25
+PrintableStringCount    5665
+IsPE                    true
+Machine                 x64 (AMD64)
+ImpHash                 a6c6d5a8f6e13c556e2c3fbc4a3dc407
+ImportedDllCount        104
+HasOverlay              true
+OverlaySize             17032
+```
+
+Every field matches, including the imphash and entropy to six decimal places.
+
+String extraction is compared as a set, not just a count. For `ntdll.dll`
+(2,517,928 bytes), `offsetscan strings` and `Get-OffsetString` both return
+**32,506** hits that agree exactly on offset, encoding, and value — zero entries
+unique to either engine.
+
+One caveat when reproducing this: `Get-OffsetString` reads in 1 MiB windows by
+default and a string straddling a window seam is split in two, which inflates
+PowerShell's count by one per affected seam on files larger than the window.
+That is an artifact of the windowed read, not a disagreement about content —
+pass a `-WindowSize` large enough to hold the file to compare like for like.
+OffsetScan reads the whole file and is unaffected.
 
 ## Build
 
