@@ -6,6 +6,9 @@ authors = ["DreadHost Research"]
 description = "Standalone native corpus-scale engine for PE parsing, entropy, string extraction, and IOC panels — schema-compatible with OffsetInspect.Result/ThreatScanResult JSON output."
 license = "MIT"
 repository = "https://github.com/warpedatom/OffsetScan"
+readme = "README.md"
+keywords = ["malware", "forensics", "pe", "entropy", "security"]
+categories = ["command-line-utilities", "parser-implementations"]
 
 [[bin]]
 name = "offsetscan"
@@ -28,6 +31,8 @@ rayon = "1"
 # Directory/wildcard expansion, matching Invoke-OffsetThreatScanBatch's file-discovery semantics
 walkdir = "2"
 glob = "0.3"
+# CSV output for the ioc panel (flat, analyst-friendly, one row per file)
+csv = "1"
 # Timestamps in ISO 8601 to match ThreatScanResult's UTC scan timestamp field
 chrono = { version = "0.4", features = ["serde"] }
 

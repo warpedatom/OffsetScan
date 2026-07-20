@@ -1,5 +1,9 @@
 # OffsetScan
 
+<p align="center">
+  <img src="assets/offsetscan-banner.png" alt="OffsetScan — native corpus-scale static-triage engine" width="640">
+</p>
+
 [![CI](https://github.com/warpedatom/OffsetScan/actions/workflows/ci.yml/badge.svg)](https://github.com/warpedatom/OffsetScan/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
@@ -60,12 +64,17 @@ offsetscan ioc ./samples --recurse
 # Streaming output for large corpora — one compact JSON object per line,
 # emitted as each file finishes so peak memory stays flat:
 offsetscan ioc ./samples --recurse --ndjson
+
+# Flat CSV for spreadsheets/SIEM (ioc only; columns match the JSON field names):
+offsetscan ioc ./samples --recurse --csv > iocs.csv
 ```
 
 By default all commands emit a pretty-printed JSON array to stdout, matching
 OffsetInspect's JSON-mode convention (always an array, even for one result).
 Add `--ndjson` for newline-delimited JSON — pipe-friendly and constant-memory
-over hundreds of thousands of files.
+over hundreds of thousands of files. Add `--csv` (the `ioc` subcommand only, as
+the others produce nested data) for a flat header + one-row-per-file table whose
+columns match the JSON field names — ready for Excel or a SIEM import.
 
 ## Consuming from PowerShell
 

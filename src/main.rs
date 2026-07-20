@@ -25,6 +25,11 @@ struct Cli {
     /// Results stream as each file finishes, so peak memory stays flat over large corpora.
     #[arg(long, global = true)]
     ndjson: bool,
+
+    /// Emit CSV (header + one row per file) for spreadsheet/SIEM use. Only the `ioc`
+    /// subcommand supports it (the others produce nested data).
+    #[arg(long, global = true, conflicts_with = "ndjson")]
+    csv: bool,
 }
 
 #[derive(Subcommand)]
@@ -105,6 +110,14 @@ fn expand_paths(path: &str, recurse: bool) -> Vec<PathBuf> {
 fn main() {
     let cli = Cli::parse();
     let ndjson = cli.ndjson;
+    let csv = cli.csv;
+
+    if csv && !matches!(&cli.command, Commands::Ioc { .. }) {
+        eprintln!(
+            "offsetscan: --csv is only supported for the `ioc` subcommand (the other commands produce nested data)."
+        );
+        std::process::exit(2);
+    }
 
     match cli.command {
         Commands::Pe {
@@ -155,11 +168,38 @@ fn main() {
         }
         Commands::Ioc { path, recurse } => {
             let files = expand_paths(&path, recurse);
-            run(files, ndjson, move |f| {
-                let data = fs::read(f).ok()?;
-                Some(ioc::build_ioc_panel(&data, &f.to_string_lossy()))
-            });
+            if csv {
+                let results: Vec<schema::Ioc> = files
+                    .par_iter()
+                    .filter_map(|f| {
+                        let data = fs::read(f).ok()?;
+                        Some(ioc::build_ioc_panel(&data, &f.to_string_lossy()))
+                    })
+                    .collect();
+                write_csv(&results);
+            } else {
+                run(files, ndjson, move |f| {
+                    let data = fs::read(f).ok()?;
+                    Some(ioc::build_ioc_panel(&data, &f.to_string_lossy()))
+                });
+            }
         }
+    }
+}
+
+/// Write IOC panels as CSV (header + one row per file) to stdout. The `csv` crate handles
+/// quoting/escaping (e.g. file paths containing commas), and serde carries the OffsetInspect
+/// field names — including the `MD5`/`SHA1`/`SHA256`/`IsPE` renames — into the CSV header.
+fn write_csv(records: &[schema::Ioc]) {
+    let mut wtr = csv::Writer::from_writer(io::stdout());
+    for record in records {
+        if let Err(e) = wtr.serialize(record) {
+            eprintln!("failed to write CSV row: {e}");
+            return;
+        }
+    }
+    if let Err(e) = wtr.flush() {
+        eprintln!("failed to flush CSV: {e}");
     }
 }
 
@@ -199,5 +239,45 @@ fn print_json<T: serde::Serialize>(value: &T) {
     match serde_json::to_string_pretty(value) {
         Ok(s) => println!("{s}"),
         Err(e) => eprintln!("failed to serialize output: {e}"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_offset_accepts_hex_and_decimal() {
+        assert_eq!(parse_offset("0x10").unwrap(), 16);
+        assert_eq!(parse_offset("0X1F").unwrap(), 31);
+        assert_eq!(parse_offset("42").unwrap(), 42);
+        assert!(parse_offset("not-a-number").is_err());
+    }
+
+    #[test]
+    fn ioc_csv_header_uses_offsetinspect_field_names() {
+        let ioc = schema::Ioc {
+            file: "x".into(),
+            file_size: 1,
+            md5: "m".into(),
+            sha1: "s".into(),
+            sha256: "h".into(),
+            overall_entropy: 0.0,
+            high_entropy_windows: 0,
+            printable_string_count: 0,
+            is_pe: false,
+            machine: None,
+            imp_hash: None,
+            imported_dll_count: None,
+            has_overlay: None,
+            overlay_size: None,
+        };
+        let mut wtr = csv::Writer::from_writer(vec![]);
+        wtr.serialize(&ioc).unwrap();
+        let out = String::from_utf8(wtr.into_inner().unwrap()).unwrap();
+        let header = out.lines().next().unwrap();
+        assert!(header.contains("MD5"));
+        assert!(header.contains("SHA256"));
+        assert!(header.contains("IsPE"));
     }
 }
