@@ -111,8 +111,7 @@ fn parse_pe_strict(data: &[u8], file_path: &str) -> Result<PeInfo, String> {
         Some(format!("{:x}", hasher.finalize()))
     };
 
-    // Resource-directory size (PE data directory index 2). VERIFY goblin API surface:
-    // recent goblin exposes optional_header.data_directories.get_resource_table().
+    // Resource-directory size (PE data directory index 2).
     let resource_size = pe
         .header
         .optional_header
@@ -121,30 +120,54 @@ fn parse_pe_strict(data: &[u8], file_path: &str) -> Result<PeInfo, String> {
         .map(|d| d.size)
         .unwrap_or(0);
 
-    // Overlay = bytes appended after the last section's raw data.
-    let last_section_end = pe
-        .sections
+    Ok(assemble_pe_info(
+        file_path,
+        data.len() as u64,
+        machine,
+        pe.is_64,
+        pe.entry as u32,
+        pe.image_base as u64,
+        sections,
+        imports,
+        imp_hash,
+        resource_size,
+    ))
+}
+
+/// Assemble the final `PeInfo`, computing the overlay identically for both parse paths.
+/// The overlay boundary uses only sections with non-zero raw data, matching OffsetInspect's
+/// `Get-OIPEOverlayRange` — a zero-raw-size section (e.g. a packer's virtual section) never
+/// defines it. (The strict path previously omitted this filter, a latent inconsistency.)
+#[allow(clippy::too_many_arguments)]
+fn assemble_pe_info(
+    file_path: &str,
+    file_len: u64,
+    machine: String,
+    is_pe32_plus: bool,
+    entry_point_rva: u32,
+    image_base: u64,
+    sections: Vec<Section>,
+    imports: Vec<Import>,
+    imp_hash: Option<String>,
+    resource_size: u32,
+) -> PeInfo {
+    let last_section_end = sections
         .iter()
-        .map(|s| (s.pointer_to_raw_data as u64) + (s.size_of_raw_data as u64))
+        .filter(|s| s.size_of_raw_data > 0)
+        .map(|s| s.pointer_to_raw_data as u64 + s.size_of_raw_data as u64)
         .max()
         .unwrap_or(0);
-    let file_len = data.len() as u64;
     let overlay_size = file_len.saturating_sub(last_section_end);
     let has_overlay = overlay_size > 0;
-    let overlay_offset = if has_overlay {
-        Some(last_section_end)
-    } else {
-        None
-    };
 
-    Ok(PeInfo {
+    PeInfo {
         file: file_path.to_string(),
         file_size: file_len,
         machine,
-        is_pe32_plus: pe.is_64,
-        entry_point_rva: pe.entry as u32,
-        entry_point_hex: format!("0x{:X}", pe.entry),
-        image_base: pe.image_base as u64,
+        is_pe32_plus,
+        entry_point_rva,
+        entry_point_hex: format!("0x{:X}", entry_point_rva),
+        image_base,
         section_count: sections.len() as u32,
         imported_dll_count: imports.len() as u32,
         sections,
@@ -152,12 +175,16 @@ fn parse_pe_strict(data: &[u8], file_path: &str) -> Result<PeInfo, String> {
         imp_hash,
         resource_size,
         has_overlay,
-        overlay_offset,
+        overlay_offset: if has_overlay {
+            Some(last_section_end)
+        } else {
+            None
+        },
         overlay_size,
-        mapped_offset: None, // populated only when a caller passes an explicit offset
+        mapped_offset: None,
         mapped_section: None,
         warnings: Vec::new(),
-    })
+    }
 }
 
 fn rd_u16(d: &[u8], o: usize) -> Option<u16> {
@@ -267,37 +294,18 @@ fn parse_pe_lenient(data: &[u8], file_path: &str) -> Result<PeInfo, String> {
 
     let (imports, imp_hash) = lenient_imports(data, &sections, import_rva as u64, is_pe32_plus);
 
-    let last_end = sections
-        .iter()
-        .filter(|s| s.size_of_raw_data > 0)
-        .map(|s| s.pointer_to_raw_data as u64 + s.size_of_raw_data as u64)
-        .max()
-        .unwrap_or(0);
-    let file_len = data.len() as u64;
-    let overlay_size = file_len.saturating_sub(last_end);
-    let has_overlay = overlay_size > 0;
-
-    Ok(PeInfo {
-        file: file_path.to_string(),
-        file_size: file_len,
-        machine: machine_name(machine_id),
+    Ok(assemble_pe_info(
+        file_path,
+        data.len() as u64,
+        machine_name(machine_id),
         is_pe32_plus,
         entry_point_rva,
-        entry_point_hex: format!("0x{:X}", entry_point_rva),
         image_base,
-        section_count: sections.len() as u32,
-        imported_dll_count: imports.len() as u32,
         sections,
         imports,
         imp_hash,
         resource_size,
-        has_overlay,
-        overlay_offset: if has_overlay { Some(last_end) } else { None },
-        overlay_size,
-        mapped_offset: None,
-        mapped_section: None,
-        warnings: Vec::new(),
-    })
+    ))
 }
 
 /// Best-effort import walk for the lenient path, mirroring `Get-OIPEImport` (including the

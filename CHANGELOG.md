@@ -3,6 +3,36 @@
 All notable changes to OffsetScan are documented in this file.
 The project follows semantic versioning.
 
+## [0.2.0] - 2026-07-21
+
+### Added
+
+- **`offsetscan yara` subcommand** (feature-gated behind `yara-scan`, off by default).
+  Matches files against YARA rule files and emits one record per matched string —
+  `File`/`Rule`/`StringId`/`Offset`/`OffsetHex`/`Data` — **verified byte-identical to
+  OffsetInspect's `Invoke-OffsetYaraScan`** on the same rules and sample. Supports multiple
+  `--rules` files, `--recurse`, a `--timeout`, and `--ndjson`. A default build (no feature)
+  exposes the subcommand but returns a clear rebuild instruction. Schema field names are
+  locked by a unit test that runs even in the default build.
+
+### Changed
+
+- Bumped the `yara` dependency `0.28 -> 0.32` and enabled its `vendored` feature.
+  `yara-sys 0.28` no longer builds against current `libclang` (bindgen emits a different
+  anonymous-union layout); 0.32 builds cleanly and vendors `libyara` so no system YARA
+  install is needed (a C toolchain and `libclang` are still required at build time). The
+  feature is still excluded from CI, so verify the feature build locally after dep bumps.
+- Unified the strict (goblin) and lenient (salvage) PE parse paths onto a single
+  `assemble_pe_info` builder, removing duplicated struct-assembly and overlay logic. Output
+  verified unchanged across the 150-file valid corpus and the 34-file malformed corpus.
+
+### Fixed
+
+- The strict PE path computed the overlay boundary **without** filtering out zero-raw-size
+  sections, unlike OffsetInspect's `Get-OIPEOverlayRange` and the lenient path — a latent
+  inconsistency that could misplace the overlay for PEs with a zero-raw-size section
+  (e.g. some packers' virtual sections). Both paths now use the filtered computation.
+
 ## [0.1.4] - 2026-07-21
 
 ### Fixed
@@ -16,7 +46,7 @@ The project follows semantic versioning.
   reachable imports/imphash. Valid PEs are unaffected — they always take the goblin path,
   verified unchanged across a 150-file corpus vs pefile. Across a 34-file malformed corpus
   (truncations, bit-flips, corrupted directories, bogus section counts, pure garbage),
-  `IsPE` now agrees with OffsetInspect on all 34 (was 22/34), and neither engine crashes or
+  `IsPE` now agrees with OffsetInspect on all 34 (was 22/34), and neither engine crashes nor
   hangs on any input. Genuinely unparseable inputs (no MZ/PE signature, or a section count
   that cannot fit) are still rejected, matching OffsetInspect.
 

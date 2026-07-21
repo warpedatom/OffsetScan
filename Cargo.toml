@@ -1,6 +1,6 @@
 [package]
 name = "offsetscan"
-version = "0.1.4"
+version = "0.2.0"
 edition = "2021"
 authors = ["DreadHost Research"]
 description = "Standalone native corpus-scale engine for PE parsing, entropy, string extraction, and IOC panels — schema-compatible with OffsetInspect.Result/ThreatScanResult JSON output."
@@ -37,8 +37,11 @@ csv = "1"
 chrono = { version = "0.4", features = ["serde"] }
 
 [dependencies.yara]
-version = "0.28"
+version = "0.32"
 optional = true
+# Build a bundled libyara from source so the feature needs no system YARA install
+# (still requires a C toolchain + libclang for bindgen at build time).
+features = ["vendored"]
 
 [features]
 default = []
