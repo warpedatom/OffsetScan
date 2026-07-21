@@ -1,5 +1,6 @@
 mod entropy;
 mod ioc;
+mod ordinals;
 mod pe;
 mod schema;
 mod strings;

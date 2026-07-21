@@ -3,6 +3,25 @@
 All notable changes to OffsetScan are documented in this file.
 The project follows semantic versioning.
 
+## [0.1.3] - 2026-07-20
+
+### Fixed
+
+- **imphash now resolves ordinal imports from `ws2_32`/`wsock32`/`oleaut32` to their real
+  function names, matching pefile and VirusTotal.** Previously these rendered as `ord<N>`,
+  so any binary importing those libraries by ordinal — a common malware networking
+  pattern — produced an imphash that did not match the value on VirusTotal, defeating the
+  imphash's purpose of correlating a sample against threat intel. Verified against pefile
+  across a 150-file corpus (44 exercising the special-ordinal path): 0 mismatches, and 15
+  binaries that previously diverged now agree. Other ordinal imports still render `ord<N>`,
+  exactly as pefile does.
+
+### Added
+
+- `src/ordinals.rs`: pefile's `ws2_32`/`wsock32`/`oleaut32` ordinal->name tables (696
+  entries), generated verbatim from pefile 2024.8.26, with unit tests. Kept in lockstep
+  with OffsetInspect's `Core.PE.Ordinals.ps1`.
+
 ## [0.1.2] - 2026-07-20
 
 ### Fixed
