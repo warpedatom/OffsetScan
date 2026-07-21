@@ -61,18 +61,23 @@ pub fn parse_pe(data: &[u8], file_path: &str) -> Result<PeInfo, String> {
         let dll_lower = import.dll.to_lowercase();
         let lib_base = strip_lib_ext(&dll_lower).to_string();
         // goblin represents an ordinal-only import with a SYNTHESIZED name
-        // ("ORDINAL <n>"), not an empty one, so detect both forms. OffsetInspect
-        // renders these as "ord<n>" (used verbatim in the imphash input).
+        // ("ORDINAL <n>"), not an empty one, so detect both forms. For ordinals imported
+        // from ws2_32/wsock32/oleaut32, resolve to the real function name exactly as
+        // pefile/VirusTotal do (so the imphash correlates with threat intel); any other
+        // ordinal renders "ord<n>". The resolved name is lowercased in the table, so the
+        // imphash and display strings are identical.
         let by_ordinal = import.name.is_empty() || import.name.starts_with("ORDINAL ");
         let func = if by_ordinal {
-            format!("ord{}", import.ordinal)
+            crate::ordinals::special_ordinal_name(&dll_lower, import.ordinal)
+                .map(str::to_string)
+                .unwrap_or_else(|| format!("ord{}", import.ordinal))
         } else {
             import.name.to_lowercase()
         };
         imphash_entries.push(format!("{lib_base}.{func}"));
 
         let func_display = if by_ordinal {
-            format!("ord{}", import.ordinal)
+            func.clone()
         } else {
             import.name.to_string()
         };
