@@ -3,6 +3,16 @@
 All notable changes to OffsetScan are documented in this file.
 The project follows semantic versioning.
 
+## [0.2.1] - 2026-07-21
+
+### Documentation
+
+- Refresh the README `yara-scan` section to describe the shipped `offsetscan yara`
+  subcommand accurately (feature-gated, schema-parity with `Invoke-OffsetYaraScan`, and
+  now covered by a CI job). The 0.2.0 crate's rendered README still carried the old
+  "experimental / not built in CI / untested" wording; this republishes it corrected.
+  No code changes.
+
 ## [0.2.0] - 2026-07-21
 
 ### Added
