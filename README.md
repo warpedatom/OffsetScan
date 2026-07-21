@@ -43,27 +43,57 @@ by unit tests so the interchange contract can't silently drift.
 
 ### Verified parity
 
-Both engines against the same Windows system DLL — `offsetscan ioc` on the left,
-`Get-OffsetIOC | ConvertTo-Json` on the right:
+Both engines produce the same IOC panel for a file — captured at runtime against the same
+Windows system DLL.
 
-```text
-File                    C:/Windows/System32/kernel32.dll
-FileSize                836232
-MD5                     46e3ab50afcb6d871b70676f562e01ce
-SHA1                    732af3ed087e2033d7e7ccaa0f4498deb2e46e8c
-SHA256                  26410f4948e0ed66936880596e2b5a59efce481a7c97086049b385f00325c341
-OverallEntropy          6.361191
-HighEntropyWindows      25
-PrintableStringCount    5665
-IsPE                    true
-Machine                 x64 (AMD64)
-ImpHash                 a6c6d5a8f6e13c556e2c3fbc4a3dc407
-ImportedDllCount        104
-HasOverlay              true
-OverlaySize             17032
+`offsetscan ioc C:\Windows\System32\kernel32.dll`:
+
+```json
+[
+  {
+    "File": "C:/Windows/System32/kernel32.dll",
+    "FileSize": 836232,
+    "MD5": "46e3ab50afcb6d871b70676f562e01ce",
+    "SHA1": "732af3ed087e2033d7e7ccaa0f4498deb2e46e8c",
+    "SHA256": "26410f4948e0ed66936880596e2b5a59efce481a7c97086049b385f00325c341",
+    "OverallEntropy": 6.361191,
+    "HighEntropyWindows": 25,
+    "PrintableStringCount": 5665,
+    "IsPE": true,
+    "Machine": "x64 (AMD64)",
+    "ImpHash": "a6c6d5a8f6e13c556e2c3fbc4a3dc407",
+    "ImportedDllCount": 104,
+    "HasOverlay": true,
+    "OverlaySize": 17032
+  }
+]
 ```
 
-Every field matches, including the imphash and entropy to six decimal places.
+`Get-OffsetIOC C:\Windows\System32\kernel32.dll | ConvertTo-Json`:
+
+```json
+{
+  "File": "C:\\Windows\\System32\\kernel32.dll",
+  "FileSize": 836232,
+  "MD5": "46e3ab50afcb6d871b70676f562e01ce",
+  "SHA1": "732af3ed087e2033d7e7ccaa0f4498deb2e46e8c",
+  "SHA256": "26410f4948e0ed66936880596e2b5a59efce481a7c97086049b385f00325c341",
+  "OverallEntropy": 6.361191,
+  "HighEntropyWindows": 25,
+  "PrintableStringCount": 5665,
+  "IsPE": true,
+  "Machine": "x64 (AMD64)",
+  "ImpHash": "a6c6d5a8f6e13c556e2c3fbc4a3dc407",
+  "ImportedDllCount": 104,
+  "HasOverlay": true,
+  "OverlaySize": 17032
+}
+```
+
+Every field value matches, including the imphash and entropy to six decimal places. The
+only differences are cosmetic serialization: OffsetScan always wraps results in an array
+(its JSON-mode convention, even for a single file) and normalizes path separators to `/`,
+while `ConvertTo-Json` emits a bare object with Windows `\` paths.
 
 String extraction is compared as a set, not just a count. For `ntdll.dll`
 (2,517,928 bytes), `offsetscan strings` and `Get-OffsetString` both return
