@@ -3,6 +3,17 @@
 All notable changes to OffsetScan are documented in this file.
 The project follows semantic versioning.
 
+## [0.2.2] - 2026-07-21
+
+### Documentation
+
+- Rewrite the README "Verified parity" section as a real side-by-side: it now shows the
+  actual `offsetscan ioc` JSON (array, `/` paths) next to the actual `Get-OffsetIOC |
+  ConvertTo-Json` output (object, `\` paths), and notes that field *values* are identical
+  while the only differences are cosmetic serialization. The prior version implied a
+  left/right comparison but showed a single stylized block matching neither tool's real
+  output. No code changes.
+
 ## [0.2.1] - 2026-07-21
 
 ### Documentation
