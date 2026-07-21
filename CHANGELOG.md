@@ -3,6 +3,28 @@
 All notable changes to OffsetScan are documented in this file.
 The project follows semantic versioning.
 
+## [0.1.1] - 2026-07-20
+
+### Fixed
+
+- **UTF-16LE string extraction missed every unaligned run.** The scanner stepped two
+  bytes unconditionally from offset 0, so it only ever inspected even-aligned code
+  units and silently skipped any UTF-16LE string beginning at an odd offset. It now
+  resynchronizes one byte at a time after a non-match, mirroring `Get-OIByteString`.
+  This under-reported `PrintableStringCount` in the `ioc` panel and omitted hits from
+  `strings` — on `user32.dll`, 36 of 366 UTF-16LE strings were missing. Verified after
+  the fix: `offsetscan strings` and `Get-OffsetString` return set-identical results
+  (offset, encoding, and value) for `ntdll.dll` — 32,506 strings, zero differences on
+  either side.
+- The UTF-16LE printability test now explicitly requires a zero high byte rather than
+  range-checking the assembled `u16`, matching the reference implementation.
+
+### Added
+
+- Regression tests for odd-offset UTF-16LE runs, mixed aligned/unaligned runs in one
+  pass, and the zero-high-byte requirement. The previous UTF-16 test used a string at
+  offset 0, so it could not catch the alignment bug.
+
 ## [0.1.0] - 2026-07-20
 
 First tagged release. Prebuilt Linux/Windows binaries are attached to the GitHub
