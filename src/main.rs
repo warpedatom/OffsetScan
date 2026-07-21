@@ -69,6 +69,19 @@ enum Commands {
         #[arg(long)]
         recurse: bool,
     },
+    /// Match files against YARA rules; one record per matched string with its offset.
+    /// Requires a build with `--features yara-scan`.
+    Yara {
+        path: String,
+        /// One or more YARA rule files.
+        #[arg(long, required = true)]
+        rules: Vec<String>,
+        #[arg(long)]
+        recurse: bool,
+        /// Per-file scan timeout in seconds.
+        #[arg(long, default_value_t = 60)]
+        timeout: i32,
+    },
 }
 
 /// Parse a byte offset given as decimal or `0x`-prefixed hexadecimal.
@@ -183,6 +196,42 @@ fn main() {
                     let data = fs::read(f).ok()?;
                     Some(ioc::build_ioc_panel(&data, &f.to_string_lossy()))
                 });
+            }
+        }
+        Commands::Yara {
+            path,
+            rules,
+            recurse,
+            timeout,
+        } => {
+            let files = expand_paths(&path, recurse);
+            // Rules are recompiled per file (simple and correct); acceptable for the
+            // interactive/small-corpus use this subcommand targets.
+            let mut all_hits = Vec::new();
+            let mut had_error = false;
+            for f in &files {
+                match yara_scan::scan_with_rules(&f.to_string_lossy(), &rules, timeout) {
+                    Ok(hits) => all_hits.extend(hits),
+                    Err(e) => {
+                        eprintln!("offsetscan yara: {}: {e}", f.display());
+                        had_error = true;
+                    }
+                }
+            }
+            if ndjson {
+                for hit in &all_hits {
+                    if let Ok(line) = serde_json::to_string(hit) {
+                        println!("{line}");
+                    }
+                }
+            } else {
+                match serde_json::to_string_pretty(&all_hits) {
+                    Ok(text) => println!("{text}"),
+                    Err(e) => eprintln!("offsetscan yara: serialization failed: {e}"),
+                }
+            }
+            if had_error && all_hits.is_empty() {
+                std::process::exit(1);
             }
         }
     }
