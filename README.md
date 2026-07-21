@@ -139,6 +139,20 @@ that shape accepts OffsetScan's output as a drop-in, faster-at-scale alternative
 Validated against OffsetInspect and covered by a unit-test suite (Shannon
 entropy vectors, string offsets, PE helpers, and the parity-critical schema
 field names) that runs in CI on Linux and Windows. `resource_size` is computed
-from the PE resource data directory. The `yara-scan` feature is **experimental**
-— it compiles behind the `yara` crate but is not built in CI and is untested
-against real rules; enable it only if you have the YARA engine installed.
+from the PE resource data directory.
+
+The `yara-scan` feature adds an `offsetscan yara` subcommand whose records
+(`File`/`Rule`/`StringId`/`Offset`/`OffsetHex`/`Data`) are verified identical to
+`Invoke-OffsetYaraScan`'s on the same rules and sample. It is **feature-gated and
+off by default** — building it needs a C toolchain and `libclang` (the `yara` crate
+compiles a vendored `libyara` via bindgen), so the default binary (and everything on
+crates.io / the release page) does not include it. A CI job builds and tests the
+feature on Linux (installing `libclang` for bindgen). Non-printable match bytes are
+decoded lossily into `Data`, which can differ from the YARA CLI's textual rendering
+for binary matches.
+
+```
+# needs: cargo build --release --features yara-scan
+offsetscan yara ./sample.bin --rules ./rules/malware.yar
+offsetscan yara ./corpus --recurse --rules ./a.yar --rules ./b.yar
+```
