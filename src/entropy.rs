@@ -9,7 +9,16 @@
 use crate::schema::{EntropyResult, EntropyWindow};
 
 fn round6(x: f64) -> f64 {
-    (x * 1_000_000.0).round() / 1_000_000.0
+    let r = (x * 1_000_000.0).round() / 1_000_000.0;
+    // Normalize IEEE negative zero to positive zero. Shannon entropy of a single-value
+    // buffer computes -1 * log2(1) = -0.0, which serializes to JSON as "-0.0" and breaks
+    // exact parity with Get-OffsetEntropy (which emits 0) on all-identical-byte files —
+    // all-zero padding, sparse regions. `-0.0 == 0.0` is true, so this catches it.
+    if r == 0.0 {
+        0.0
+    } else {
+        r
+    }
 }
 
 /// Shannon entropy (bits/byte) of a byte slice — raw, unrounded.
@@ -81,6 +90,24 @@ mod tests {
     #[test]
     fn entropy_of_a_single_repeated_byte_is_zero() {
         assert_eq!(shannon_entropy(&[0xAA; 64]), 0.0);
+    }
+
+    #[test]
+    fn zero_entropy_serializes_as_positive_zero() {
+        // Regression: -1 * log2(1) = -0.0 propagated to the output, so a zero-entropy file
+        // reported "-0.0" and diverged from Get-OffsetEntropy's 0. assert_eq! can't catch it
+        // (-0.0 == 0.0), so assert the sign bit explicitly, on both overall and per-window.
+        assert!(round6(shannon_entropy(&[0x00; 256])).is_sign_positive());
+        let r = build_entropy_result(&[0u8; 512], "x", 256, 7.0);
+        assert!(
+            r.overall_entropy.is_sign_positive(),
+            "overall entropy must be +0.0, got {:?}",
+            r.overall_entropy
+        );
+        assert!(
+            r.windows.iter().all(|w| w.entropy.is_sign_positive()),
+            "every window entropy must be +0.0"
+        );
     }
 
     #[test]
