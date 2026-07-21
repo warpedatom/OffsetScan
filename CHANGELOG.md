@@ -3,6 +3,28 @@
 All notable changes to OffsetScan are documented in this file.
 The project follows semantic versioning.
 
+## [0.1.4] - 2026-07-21
+
+### Fixed
+
+- **Structurally-damaged PEs are no longer rejected outright.** goblin does strict
+  full-structure validation, so a truncated or carved sample — headers intact but section
+  data cut off, common with partial downloads and file-carving — was reported as
+  `IsPE: false` with every PE field null, losing all triage value. `parse_pe` now falls
+  back to a lenient header-salvage parse (mirroring OffsetInspect's `ConvertTo-OIPEImage`)
+  when goblin rejects a file, recovering machine, sections, entry point, overlay, and any
+  reachable imports/imphash. Valid PEs are unaffected — they always take the goblin path,
+  verified unchanged across a 150-file corpus vs pefile. Across a 34-file malformed corpus
+  (truncations, bit-flips, corrupted directories, bogus section counts, pure garbage),
+  `IsPE` now agrees with OffsetInspect on all 34 (was 22/34), and neither engine crashes or
+  hangs on any input. Genuinely unparseable inputs (no MZ/PE signature, or a section count
+  that cannot fit) are still rejected, matching OffsetInspect.
+
+### Added
+
+- Lenient-parse unit tests: header-only PE salvage, and rejection of non-PE buffers and
+  unfittable section counts.
+
 ## [0.1.3] - 2026-07-20
 
 ### Fixed
