@@ -1,6 +1,6 @@
 [package]
 name = "offsetscan"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 authors = ["DreadHost Research"]
 description = "Standalone native corpus-scale engine for PE parsing, entropy, string extraction, and IOC panels — schema-compatible with OffsetInspect.Result/ThreatScanResult JSON output."

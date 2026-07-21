@@ -3,6 +3,24 @@
 All notable changes to OffsetScan are documented in this file.
 The project follows semantic versioning.
 
+## [0.1.2] - 2026-07-20
+
+### Fixed
+
+- **`OverallEntropy` (and per-window entropy) reported `-0.0` for a zero-entropy file.**
+  Shannon entropy of an all-identical-byte buffer computes `-1 * log2(1) = -0.0` (IEEE
+  negative zero), which serialized to JSON as `"-0.0"` and diverged from
+  `Get-OffsetEntropy`, which emits `0`. Negative zero is now normalized to positive zero
+  at the rounding step, so both engines agree exactly on all-identical-byte inputs
+  (all-zero padding, sparse regions). Verified against a 256 KiB zero file: both now
+  report `0`.
+
+### Added
+
+- A regression test asserting zero entropy carries a positive sign bit on both the overall
+  value and every window. The prior test used `assert_eq!`, which cannot distinguish
+  `-0.0` from `0.0`, so the sign defect passed unnoticed.
+
 ## [0.1.1] - 2026-07-20
 
 ### Fixed
